@@ -17,10 +17,10 @@
 #define latA 21.0065177
 #define longA 105.8429565
 
-#define latB 21.006523
+#define latB 21.0065177
 #define longB 105.8431188
 
-#define latC 21.0065228
+#define latC 21.0065177
 #define longC 105.8432823
 
 #define latD 21.0066968
@@ -29,8 +29,20 @@
 #define latE 21.0066968
 #define longE 105.8431183
 
-#define latF 21.0066886
-#define longF 105.8429563
+#define latF 21.0066968
+#define longF 105.8429565
+
+#define latG 21.0066968
+#define longG 105.8427926
+
+#define latH 21.0065177
+#define longH 105.8427972
+
+#define latI 21.0063461
+#define longI 105.8427886
+
+#define latJ 21.0063461
+#define longJ 105.8429565
 
 double maxj = 5.0 , maxa = 4.0 , maxv = 2.5 , maxav = 1.2 , maxaa = 2.0;
 int sample_idx=0,waypoint_idx=0;
@@ -40,7 +52,7 @@ std::vector<int> Indexwp;
 bool gps_home_init = false, odom_init = false , setmode_init =false ,plan_init = false ,plan_fin =false;
 Eigen::Quaterniond mav_att ;
 double mav_yaw = 0,mav_yawvel = 0;
-Eigen::Vector3d gps_home,gpsraw,local_start,mav_pos,mav_vel;
+Eigen::Vector3d gps_home,gpsraw,local_start,mav_pos,mav_vel,offset;
 std::vector<Eigen::Vector3d> gps_target,local_setpoint;
 double UTM_X,UTM_Y;
 double UTM_SP_X,UTM_SP_Y;
@@ -86,6 +98,7 @@ void gpsrawCallback(const sensor_msgs::NavSatFix &msg){
     setpoint(0) = mav_pos(0) - UTM_X + UTM_SP_X;
     setpoint(1) = mav_pos(1) - UTM_Y + UTM_SP_Y;
     setpoint(2) = target(2);
+    setpoint += offset;
     // setpoint(3) = target(3);
     local_setpoint.push_back(setpoint);
  }
@@ -129,6 +142,26 @@ int main(int argc, char **argv) {
         break;
       }
 
+      case 'G': {
+        gps_target.push_back(Eigen::Vector3d(latG,longG,7.0));
+        break;
+      }
+
+      case 'H': {
+        gps_target.push_back(Eigen::Vector3d(latH,longH,7.0));
+        break;
+      }
+
+      case 'I': {
+        gps_target.push_back(Eigen::Vector3d(latI,longI,7.0));
+        break;
+      }
+
+      case 'J': {
+        gps_target.push_back(Eigen::Vector3d(latJ,longJ,7.0));
+        break;
+      }
+
       default:{
         ROS_ERROR("Invalid command");
         return 0;
@@ -143,6 +176,7 @@ int main(int argc, char **argv) {
   ros::init(argc_, argv_, "controller_gps");
   ros::NodeHandle n;
   ros::Rate loop_rate(100);
+  offset << 2.0,5.0,0.0;
   ros::Subscriber odomSub_ = n.subscribe("mavros/local_position/odom", 1, &odomCallback,
                                ros::TransportHints().tcpNoDelay());
   ros::Subscriber gpsSub_ = n.subscribe("/mavros/global_position/global", 1, &gpsrawCallback, ros::TransportHints().tcpNoDelay());

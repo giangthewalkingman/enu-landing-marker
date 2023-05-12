@@ -42,6 +42,7 @@
 #include <geometric_controller/common.h>
 #include <geometric_controller/UTM.h>
 #include <geometric_controller/setmode.h>
+#include <geometric_controller/getmode.h>
 #include <geometric_controller/logging_lib.h>
 #include <std_srvs/SetBool.h>
 
@@ -91,7 +92,7 @@ class geometricCtrl {
   ros::ServiceClient arming_client_,land_client_;
   ros::ServiceClient set_mode_client_;
 
-  ros::ServiceServer setModeServer_;
+  ros::ServiceServer setModeServer_,getModeServer_;
   
   ros::Timer cmdloop_timer_, statusloop_timer_ ;
   ros::Time Flight_start,last_request_;
@@ -152,6 +153,7 @@ class geometricCtrl {
   void rawsetpointHold(const Eigen::Vector3d &position , const double &yaw);
 
   bool setModeCallback( geometric_controller::setmodeRequest &req , geometric_controller::setmodeResponse &res);
+  bool getModeCallback( geometric_controller::getmodeRequest &req , geometric_controller::getmodeResponse &res);
   
   void flattargetCallback(const controller_msgs::FlatTarget &msg);
   void quad_msgsCallback(const controller_msgs::PositionCommand &msg);
@@ -169,6 +171,7 @@ class geometricCtrl {
 
   bool almostZero(double value);
   double controlyawvel();
+  void checkingHoldSwitch();
 
   geometry_msgs::PoseStamped vector3d2PoseStampedMsg(Eigen::Vector3d &position, Eigen::Vector4d &orientation);
   double ToEulerYaw(const Eigen::Quaterniond& q);
@@ -183,7 +186,7 @@ class geometricCtrl {
   Eigen::Quaterniond computeDesiredQuat(const Eigen::Vector3d &a_des);
   Eigen::Vector3d computeDragAcc(const Eigen::Vector3d& v_des , const Eigen::Quaterniond& q_des ,Eigen::Vector3d& drag_acc);
   enum FlightState { WAITING_FOR_HOME_POSE,
-                     TAKE_OFF_AND_HOLD,
+                     TAKE_OFF,
                      HOLD,
                      MISSION_EXECUTION,
                      AUTO_LAND,

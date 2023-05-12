@@ -54,6 +54,7 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle &nh, const ros::NodeHandle &n
   // Set state services
 
   setModeServer_ =  nh_.advertiseService("/controller/set_mode",&geometricCtrl::setModeCallback,this);
+  getModeServer_ =  nh_.advertiseService("/controller/get_mode",&geometricCtrl::getModeCallback,this);
 
   // Debug topics
   debugGpsLocalPub_ = nh_.advertise<geometry_msgs::Point>("/debug/localgps_pos", 1);
@@ -227,7 +228,35 @@ void geometricCtrl::mavtwistCallback(const geometry_msgs::TwistStamped &msg) {
   mavVel_ = toEigen(msg.twist.linear);
   mavRate_ = toEigen(msg.twist.angular);
 }
-
+bool geometricCtrl::getModeCallback( geometric_controller::getmodeRequest &req , geometric_controller::getmodeResponse &res){
+   switch (node_state) {
+    case WAITING_FOR_HOME_POSE : {
+      res.result = req.WAITING_FOR_HOME_POSE;
+      break;
+    }
+    case TAKE_OFF : {
+      res.result = req.TAKE_OFF;
+      break;
+    }
+    case HOLD : {
+      res.result = req.HOLD;
+      break;
+    }
+    case MISSION_EXECUTION : {
+      res.result = req.MISSION_EXECUTION;
+      break;
+    }
+    case AUTO_LAND : {
+      res.result = req.AUTO_LAND;
+      break;
+    }
+    case ONGROUND : {
+      res.result = req.ONGROUND;
+      break;
+    }
+   }
+   return true;
+}
 bool geometricCtrl::setModeCallback( geometric_controller::setmodeRequest &req , geometric_controller::setmodeResponse &res){
   switch(req.mode){
     case req.TAKE_OFF_AND_HOLD :{
@@ -237,7 +266,7 @@ bool geometricCtrl::setModeCallback( geometric_controller::setmodeRequest &req ,
          TakeOffTargetPos_ << mavPos_(0) , mavPos_(1) , req.sub;
          TakeOffYaw_ = ToEulerYaw(mavAtt_);
          ROS_INFO_STREAM("TakeOffAndHold at : " << mavPos_(0) << ", " << mavPos_(1) <<", " << req.sub << " yaw " << TakeOffYaw_ << " accepted");
-         node_state = TAKE_OFF_AND_HOLD;
+         node_state = TAKE_OFF;
          res.success = true;
          take_off_request_ = true;
         }
@@ -260,7 +289,7 @@ bool geometricCtrl::setModeCallback( geometric_controller::setmodeRequest &req ,
     break;
     }
     case req.MISSION_EXECUTION :{
-      if(node_state != ONGROUND && node_state !=AUTO_LAND)
+      if(node_state == HOLD)
         {
          targetPos_ << mavPos_(0) , mavPos_(1) , mavPos_(2);
          ROS_INFO_STREAM("Execute start at : " << mavPos_(0) << ", " << mavPos_(1) <<", " << mavPos_(2) << " accepted");
@@ -288,6 +317,17 @@ bool geometricCtrl::setModeCallback( geometric_controller::setmodeRequest &req ,
     
   }
   return true;
+}
+
+void geometricCtrl::checkingHoldSwitch(){
+      double TakeOffPosErr = (mavPos_ - TakeOffTargetPos_).norm();
+      double TakeOffYawErr = fabs(ToEulerYaw(mavAtt_) - TakeOffYaw_);
+      double TakeOffVelErr = mavVel_.norm();
+      if(TakeOffPosErr < 0.2 && TakeOffYawErr < 0.1 && TakeOffVelErr < 0.2){
+      HoldTargetPos_ = TakeOffTargetPos_;
+      HoldYaw_ = TakeOffYaw_;
+      node_state = HOLD;
+      }
 }
 
 void geometricCtrl::rawsetpointPubAcc(const Eigen::Vector3d &accelration,double yawvel){
@@ -333,8 +373,9 @@ void geometricCtrl::cmdloopCallback(const ros::TimerEvent &event) {
       node_state = ONGROUND;
       break;
     }
-    case TAKE_OFF_AND_HOLD: {
+    case TAKE_OFF: {
       rawsetpointTakeOff(TakeOffTargetPos_ , TakeOffYaw_);
+      checkingHoldSwitch();
       break;
     }
     case HOLD: {

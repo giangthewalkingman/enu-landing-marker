@@ -24,6 +24,7 @@ generate_dynamic_reconfigure_options(
 add_service_files(
   FILES
   setmode.srv
+  getmode.srv
 )
 
 generate_messages(
